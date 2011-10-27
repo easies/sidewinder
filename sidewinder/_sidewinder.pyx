@@ -1,3 +1,7 @@
+import os
+
+cdef extern from "errno.h":
+    int errno
 
 cdef extern from "sys/types.h":
     ctypedef int size_t
@@ -47,14 +51,22 @@ cdef extern from "stdio.h":
     void perror(char *)
 
 cdef extern from "sidewinder.h":
-    int sendsocket(int channel, int sockfd)
-    int recvsocket(int channel)
+    int c_sendsocket "sendsocket" (int channel, int sockfd)
+    int c_recvsocket "recvsocket" (int channel)
 
-def _sendsocket(fd, sockfd):
-    return sendsocket(fd, sockfd)
+def get_fd(fd):
+    if hasattr(fd, 'fileno'):
+        return fd.fileno()
+    return fd
 
-def _recvsocket(fd):
-    result = recvsocket(fd)
+def sendsocket(fd, sockfd):
+    if c_sendsocket(get_fd(fd), get_fd(sockfd)) < 0:
+        raise IOError(errno, os.strerror(errno))
+
+def recvsocket(fd):
+    result = c_recvsocket(get_fd(fd))
+    if result < 0:
+        raise IOError(errno, os.strerror(errno))
     if result == 0:
-        raise Exception()
+        raise IOError(errno, os.strerror(errno))
     return result

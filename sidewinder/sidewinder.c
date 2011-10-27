@@ -14,7 +14,6 @@ sendsocket(int channel, int sockfd) {
     /* ancillary data buffer */
     char buf[CMSG_SPACE(sizeof myfds)];
     int *fdptr;
-    size_t result;
     char ping = 'a';
     struct iovec iov = {
         .iov_base = &ping,
@@ -34,11 +33,7 @@ sendsocket(int channel, int sockfd) {
     memcpy(fdptr, myfds, sizeof(int));
     /* Sum of the length of all control messages in the buffer: */
     msg.msg_controllen = cmsg->cmsg_len;
-    if ((result = sendmsg(channel, &msg, 0)) < 0) {
-        perror("sendmsg");
-        return -1;
-    }
-    return result;
+    return sendmsg(channel, &msg, 0);
 }
 
 int
@@ -47,7 +42,7 @@ recvsocket(int channel) {
     struct cmsghdr *cmsg;
     ssize_t result;
     char io_buf;
-    char buf[CMSG_SPACE(sizeof (int *)) * 2];
+    char buf[CMSG_SPACE(sizeof (int *))];
     struct iovec iov;
     /* we are only receiving 1 byte of data. */
     iov.iov_base = &io_buf;
@@ -57,7 +52,6 @@ recvsocket(int channel) {
     msg.msg_control = buf;
     msg.msg_controllen = sizeof buf;
     if ((result = recvmsg(channel, &msg, 0)) < 0) {
-        perror("recvmsg");
         return result;
     }
     if (result == 0) {
