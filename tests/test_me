@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+
+from sidewinder._sidewinder import _sendsocket, _recvsocket
+import socket
+import os
+import time
+
+
+fd1, fd2 = socket.socketpair()
+print fd1, fd2
+pid = os.fork()
+
+if pid == 0:
+    f = open('somefile.txt', 'r')
+    print '_sendsocket'
+    print '_sendsocket %d' % _sendsocket(fd1.fileno(), f.fileno())
+    f.close()
+elif pid > 0:
+    print '_recvsocket'
+    x = _recvsocket(fd2.fileno())
+    print '_recvsocket %d' % x
+    print os.fdopen(x).read()
+    time.sleep(100000)
+else:
+    print 'fork error'
