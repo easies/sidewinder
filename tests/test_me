@@ -5,27 +5,37 @@ import os
 import time
 import logging
 import tempfile
+import time
 
 logging.basicConfig(level=logging.DEBUG)
 
+def now():
+    return time.time()
+
 def child(channel):
     i = 1
+    start = now()
     while True:
         fd, path = tempfile.mkstemp()
+        # remove the actual file, because we only need a file descriptor.
+        os.remove(path)
         logging.debug('Sending socket: %d' % fd)
         r = sendsocket(channel, fd)
         logging.debug('%09d Returned: %r' % (i, r))
         os.close(fd)
         i += 1
+        logging.info('Sending %.5f per second' % (i / (now() - start)))
 
 
 def parent(channel):
     i = 1
+    start = now()
     while True:
         x = recvsocket(channel)
         logging.debug('%09d Recv\'d %d' % (i, x))
         os.close(x)
         i += 1
+        logging.info('Recving %.5f per second' % (i / (now() - start)))
 
 
 def main():

@@ -1,5 +1,8 @@
 import os
 
+cdef extern from "string.h":
+    void memset(void *, int, int)
+
 cdef extern from "errno.h":
     int errno
 
@@ -23,6 +26,12 @@ cdef extern from "sys/types.h":
         int         cmsg_level
         int         cmsg_type
         # followed by unsigned char[]
+    int MSG_EOR
+    int MSG_TRUNC
+    int MSG_CTRUNC
+    int MSG_OOB
+    int MSG_ERRQUEUE
+    int MSG_PEEK
 
 cdef extern from "sys/socket.h":
     int socketpair(int domain, int type, int protocol, int sv[2])
@@ -39,20 +48,14 @@ cdef extern from "sys/socket.h":
     int AF_UNIX
     int SOCK_STREAM
 
-cdef extern from "string.h":
-    void memcpy(void *dest, void *src, size_t n)
-
-cdef extern from "stdlib.h":
-    void *malloc(size_t size)
-    void free(void *)
-
-cdef extern from "stdio.h":
-    int printf(char *format, ...)
-    void perror(char *)
-
 cdef extern from "sidewinder.h":
+    struct sw_status:
+        msghdr msg
+        iovec iov
+        cmsghdr *cmsg
+        char buf[1]
     int c_sendsocket "sendsocket" (int channel, int sockfd)
-    int c_recvsocket "recvsocket" (int channel)
+    int c_recvsocket "recvsocket" (int channel, sw_status *status)
 
 def get_fd(fd):
     if hasattr(fd, 'fileno'):
@@ -64,9 +67,11 @@ def sendsocket(fd, sockfd):
         raise IOError(errno, os.strerror(errno))
 
 def recvsocket(fd):
-    result = c_recvsocket(get_fd(fd))
-    if result < 0:
+    cdef sw_status status
+    memset(&status, 0, sizeof(sw_status))
+    result = c_recvsocket(get_fd(fd), &status)
+    if status.msg.msg_flags & (MSG_CTRUNC | MSG_TRUNC):
         raise IOError(errno, os.strerror(errno))
-    if result == 0:
+    if result <= 0:
         raise IOError(errno, os.strerror(errno))
     return result

@@ -5,6 +5,12 @@
 #include <unistd.h>
 #include "sidewinder.h"
 
+static char PING = 'a';
+static struct iovec IOV = {
+    .iov_base = &PING,
+    .iov_len = sizeof(PING),
+};
+
 int
 sendsocket(int channel, int sockfd) {
     struct msghdr msg = {0};
@@ -14,15 +20,10 @@ sendsocket(int channel, int sockfd) {
     /* ancillary data buffer */
     char buf[CMSG_SPACE(sizeof myfds)];
     int *fdptr;
-    char ping = 'a';
-    struct iovec iov = {
-        .iov_base = &ping,
-        .iov_len = sizeof ping,
-    };
     myfds[0] = sockfd;
     msg.msg_control = buf;
     msg.msg_controllen = sizeof buf;
-    msg.msg_iov = &iov;
+    msg.msg_iov = &IOV;
     msg.msg_iovlen = 1;
     cmsg = CMSG_FIRSTHDR(&msg);
     cmsg->cmsg_level = SOL_SOCKET;
@@ -37,26 +38,25 @@ sendsocket(int channel, int sockfd) {
 }
 
 int
-recvsocket(int channel) {
-    struct msghdr msg = {0};
+recvsocket(int channel, sw_status_t *status) {
     struct cmsghdr *cmsg;
     ssize_t result;
     char io_buf;
-    char buf[CMSG_SPACE(sizeof (int *))];
-    struct iovec iov;
+    /* struct iovec iov; */
     /* we are only receiving 1 byte of data. */
-    iov.iov_base = &io_buf;
-    iov.iov_len = 1;
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-    msg.msg_control = buf;
-    msg.msg_controllen = sizeof buf;
-    if ((result = recvmsg(channel, &msg, 0)) < 0) {
+    status->iov.iov_base = &io_buf;
+    status->iov.iov_len = 1;
+    status->msg.msg_iov = &status->iov;
+    status->msg.msg_iovlen = 1;
+    status->msg.msg_control = status->buf;
+    status->msg.msg_controllen = sizeof(status->buf);
+    /* 0 means shutdown */
+    if ((result = recvmsg(channel, &status->msg, 0)) <= 0) {
         return result;
     }
-    if (result == 0) {
-        return 0;
+    if (status->msg.msg_controllen >= sizeof(int)) {
+        cmsg = CMSG_FIRSTHDR(&status->msg);
+        return *((int *)CMSG_DATA(cmsg));
     }
-    cmsg = CMSG_FIRSTHDR(&msg);
-    return *((int *)CMSG_DATA(cmsg));
+    return -1;
 }
