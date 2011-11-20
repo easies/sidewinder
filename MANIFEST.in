@@ -1,0 +1,3 @@
+include tests/*
+include sidewinder/sidewinder.c
+include sidewinder/sidewinder.h

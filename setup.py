@@ -10,7 +10,7 @@ ext_modules = [
 ]
 
 setup(
-    name='Sidewinder',
+    name='sidewinder',
     version='0.1.0',
     author='Alex Lee',
     author_email='alex@thirdbeat.com',
